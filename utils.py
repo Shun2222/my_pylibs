@@ -12,7 +12,6 @@ import pickle as pkl
 import inspect
 import matplotlib.animation as animation
 
-
 ### Functions for data processing ###
 # 移動平均
 def mean_pre_nex(data, pre=5, nex=5):
@@ -47,73 +46,6 @@ def load_json(file_path):
     with open(file_path, 'r') as f:
         data = json.load(f)
     return data
-
-### Functions for visualization ###
-def plot_datas(datas, labels, use_axis=False):
-    n_data = len(datas)
-    n_col = 4 
-    n_row = n_data//n_col+1
-    fig, axes = plt.subplots(n_row, n_col, figsize=(n_col*4, n_row*4))
-    if n_row==1:
-        for n in range(n_col):
-            axes[n].axis('off')
-            im = axes[n].imshow(datas[n])
-            cbar = fig.colorbar(im, ax=axes[n])
-            axes[n].set_title(labels[n])
-
-    for r in range(n_row):
-        for c in range(n_col):
-            if n_col*r+c >= n_data:
-                axes[r, c].axis('off')
-                break
-            if not use_axis:
-                axes[r, c].axis('off')
-            im = axes[r, c].imshow(datas[n_col*r+c])
-            cbar = fig.colorbar(im, ax=axes[r, c])
-            axes[r, c].set_title(labels[n_col*r+c])
-    plt.show()
-
-class GifMaker():
-    def __init__(self):
-        self.datas = []
-
-    def add_data(self, d):
-        self.datas += [d]
-
-    def add_datas(self, ds):
-        self.datas += ds
-
-    def make(self, titles=None, folder="./", file_name="Non", save=True, show=False):
-        datas_np = np.array(self.datas)
-        max_value = np.nanmax(datas_np)
-        min_value = np.nanmin(datas_np)
-        print(f'max: {max_value}')
-        print(f'min: {min_value}')
-
-        def make_heatmap(i):
-            ax.cla()
-            if titles:
-                ax.set_title(titles[i])
-            else:
-                ax.set_title("Iteration="+str(i))
-            data = np.array(self.datas[i])
-            sns.heatmap(data, ax=ax, cbar=True, cbar_ax=cbar_ax, vmin=min_value, vmax=max_value)
-            ax.set_aspect('equal', adjustable='box')
-        #fms = len(self.datas) if len(self.datas)<=128 else np.linspace(0, len(self.datas)-1, 128).astype(int)
-        fms = len(self.datas) 
-        grid_kws = {'width_ratios': (0.9, 0.05), 'wspace': 0.2}
-        fig, (ax, cbar_ax) = plt.subplots(1, 2, gridspec_kw = grid_kws, figsize = (12, 8))
-        ani = animation.FuncAnimation(fig=fig, func=make_heatmap, frames=fms, interval=500, blit=False)
-        if save:
-            file_path = osp.join(folder, file_name+".gif")
-            ani.save(file_path, writer="pillow")
-        if show:
-            plt.show() 
-        plt.close()
-
-    def reset(self):
-        plt.close()
-        self.datas = []
 
 ### Other programs ###
 # importされたファイル一覧の取得
@@ -153,6 +85,41 @@ def pickle_load(path):
     with open(path, mode='rb') as f:
         data = pkl.load(f)
         return data 
+
+from sklearn.neighbors import KernelDensity
+def calc_kde(prob_datas, num_agent=1000):
+    datas = np.array(prob_datas)
+    d_shape = datas.shape
+    assert len(d_shape)==2, f'shape error in kde plot {d_shape}'
+
+    n_data = (datas*1000).astype(np.int64)
+
+    # 2次元の確率データの例（仮のデータ）
+    #data = np.random.randn(1000, 2)  # 1000個の2次元データポイント
+    data = []
+    for r in range(d_shape[0]):
+        for c in range(d_shape[1]):
+            data += [[r, c] for i in range(n_data[r, c])]
+    data = np.array(data)
+
+    n_data = np.zeros(d_shape)
+
+    # カーネル密度推定を使用してPDFを推定
+    kde = KernelDensity(kernel='gaussian', bandwidth=0.5).fit(data)
+
+    # 等高線プロットの準備
+    x = y = np.array([i for i in range(d_shape[0])]) 
+    X, Y = np.meshgrid(x, y)
+    xy = np.vstack([X.ravel(), Y.ravel()]).T
+
+    # 確率密度関数の計算
+    Z = np.exp(kde.score_samples(xy))
+    Z = Z.reshape(X.shape)
+    Z2 = []
+    for i in range(len(Z)):
+        Z2.append(Z[len(Z)-i-1])
+    Z = Z2
+    return X, Y, Z, n_data
 
 
 ### for nmri programs ###
