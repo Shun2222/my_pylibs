@@ -59,9 +59,15 @@ class GifMaker():
         plt.close()
         self.datas = []
 
-def plot_datas(datas, labels, use_axis=False, n_col=4):
+def plot_datas(datas, labels, use_axis=False, n_rowcol=(1, 4)):
     n_data = len(datas)
-    n_row = n_data//n_col+1
+    if n_rowcol[0]*n_rowcol[1] < n_data:
+        n_col = n_rowcol[1]
+        n_row = n_data//n_col+1
+    else:
+        n_row = n_rowcol[0]
+        n_col = n_rowcol[1]
+
     fig, axes = plt.subplots(n_row, n_col, figsize=(n_col*5, n_row*5))
     if n_row==1:
         for n in range(n_col):
